@@ -53,7 +53,7 @@ async fn apirequest(
     apidata: &mut ParsedData,
     body: &Client,
 ) -> Result<String, reqwest::Error> {
-    let url: String = format!("https://{}/rest/getNowPlaying.view", configstruct.httpaddr);
+    let url: String = format!("{}/rest/getNowPlaying.view", configstruct.httpaddr);
     let token_stripped = &format!("{:x}", tokendata.token);
 
     let respbody = body
