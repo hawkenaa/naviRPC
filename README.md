@@ -58,3 +58,4 @@ As I have moved to Navidrome, I do plan on adding to this project.
 (IE: custom status arrangements, timestamp support, daemon and docker support)
 
 This project was started for learning _Rust_.
+_(meaning all gruelly handwritten!!!!!)_
