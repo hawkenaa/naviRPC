@@ -146,22 +146,26 @@ async fn main() {
     let token: TokenData = gentoken(&configstruct.password);
     let mut parsed_api_data: ParsedData = ParsedData::default();
     let mut apidata: String = String::new();
+
     let mut client: DiscordIpcClient = reclient(&configstruct);
     let body: Client = reqwest::Client::new();
+
     let mut mediastate: bool = false;
+    let mut lasttrack: String = String::new();
 
     tokio::select! {
         _ = async {
                 loop {
                     apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
                     parseapirequest(&mut parsed_api_data, &apidata);
+                    
 
                     if parsed_api_data.title.is_empty() {
                         let _ = client.close();
 
                         mediastate = false;
                         println!("closing ipc, ms {} (f)", mediastate);
-                    } else if !parsed_api_data.title.is_empty() && !mediastate {
+                    } else if (!parsed_api_data.title.is_empty() && !mediastate) || lasttrack != parsed_api_data.title {
                         client = reclient(&configstruct);
                         apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
                         if let Err(initerror) = init_ipc(&parsed_api_data, &mut client) {
@@ -175,6 +179,7 @@ async fn main() {
 
                     // debug // println!("{} {} {} {} {} {} {}", parsed_api_data.username, parsed_api_data.title, parsed_api_data.artist, parsed_api_data.album, parsed_api_data.play_count, parsed_api_data.cover_art, parsed_api_data.constructedlargeimageurl);
 
+                    lasttrack = parsed_api_data.title.clone();
                     tokio::time::sleep(Duration::from_secs(configstruct.pollingrate as u64)).await;
                 }
             } => {}
