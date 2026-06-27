@@ -165,7 +165,6 @@ async fn main() {
                         let _ = client.close();
 
                         mediastate = false;
-                        println!("closing ipc, ms {} (f)", mediastate);
                     } else if (!parsed_api_data.title.is_empty() && !mediastate) || lasttrack != parsed_api_data.title {
                         client = reclient(&configstruct);
                         apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
@@ -175,10 +174,7 @@ async fn main() {
                         };
 
                         mediastate = true;
-                        println!("opening ipc, ms {} (t)", mediastate);
                     };
-
-                    // debug // println!("{} {} {} {} {} {} {}", parsed_api_data.username, parsed_api_data.title, parsed_api_data.artist, parsed_api_data.album, parsed_api_data.play_count, parsed_api_data.cover_art, parsed_api_data.constructedlargeimageurl);
 
                     lasttrack = parsed_api_data.title.clone();
                     tokio::time::sleep(Duration::from_secs(configstruct.pollingrate as u64)).await;
