@@ -188,7 +188,6 @@ async fn main() {
                 let _ = client.close();
             }
 
-
     }
 
 }

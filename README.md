@@ -37,12 +37,11 @@ An Application ID (Discord Application) is used to give Rich Presence a name and
 
 Displaying music artwork is only possible if your library is publically exposed (reachable over internet), as Discord cannot access Jellyfin over LAN or VPN (Tailscale). This does not apply to Rich Presence.
 
-Polling rate is used to manage polling for your Navidrome Server and IPC socket (RPC). Any integer can be used, but 3-15 seconds are recomended, with lower integers resulting in faster updates, and vice-versa. ~~Your IPC socket will only update if your media changes (Different Track), you pause your media, or if you skip forward or backward in your track.~~ :: soon..
+Polling rate is used to manage polling for your Navidrome Server and IPC socket (RPC). Any integer can be used, but 3-15 seconds are recomended, with lower integers resulting in faster updates, and vice-versa. Your IPC socket will only update if your media changes (Different Track), you pause your media, or if you skip forward or backward in your track.
 
 the IPC connection will automatically close when no media is playing whatsoever, ~~but remains open if you have items queued or pause your media~~ navidrome automatically sets your media to non-active after a set amount of time, which WILL close your connection. IPC will automatically reopen when media is found active (playing).
 
-~~This program will only pull the first session found, paused or not, and does not have user-filter support.~~ 
-I forgot if this is supported.
+This program will only pull the first session found, paused or not, and does ~~not~~ (yet) have user-filter support.
 
 Due to the limitations of the OpenSubsonicAPI and SubsonicAPI, timestamps do not automatically save using the navidrome web-player, though custom clients may post and save to the server, allowing timestamps to show.
 Timestamps are not-yet supported but I will look into it.
