@@ -19,7 +19,7 @@ struct Config {
     pollingrate: i32,
 }
 fn parseconfig(config: &mut Config) -> serde_json::Result<()> {
-    let configfile = fs::read_to_string("config.json").unwrap();
+    let configfile: String = fs::read_to_string("config.json").unwrap();
     let parsed: Config = serde_json::from_str(&configfile)?;
 
     config.application_id = parsed.application_id;
@@ -38,7 +38,7 @@ struct TokenData {
     salt: String,
 }
 fn gentoken(password: &str) -> TokenData {
-    let salt = Alphanumeric.sample_string(&mut rand::rng(), 6);
+    let salt: String = Alphanumeric.sample_string(&mut rand::rng(), 6);
     let generatedtoken: md5::Digest = md5::compute(format!("{}{}", password, salt));
 
     TokenData {
@@ -50,11 +50,11 @@ fn gentoken(password: &str) -> TokenData {
 async fn apirequest(
     configstruct: &Config,
     tokendata: &TokenData,
-    apidata: &mut ParsedData,
+    parsed_api_data: &mut ParsedData,
     body: &Client,
 ) -> Result<String, reqwest::Error> {
     let url: String = format!("{}/rest/getNowPlaying.view", configstruct.httpaddr);
-    let token_stripped = &format!("{:x}", tokendata.token);
+    let token_stripped: &String = &format!("{:x}", tokendata.token);
 
     let respbody = body
         .get(url)
@@ -74,9 +74,9 @@ async fn apirequest(
     imageurl
         .query_pairs_mut()
         .append_pair("size", "512")
-        .append_pair("id", &apidata.cover_art);
-    apidata.constructedlargeimageurl = imageurl.to_string();
-    let response = respbody.text().await?;
+        .append_pair("id", &parsed_api_data.cover_art);
+    parsed_api_data.constructedlargeimageurl = imageurl.to_string();
+    let response: String = respbody.text().await?;
     Ok(response)
 }
 
@@ -95,17 +95,16 @@ struct ParsedData {
     constructedlargeimageurl: String,
     // constructedsmallimageurl: (),
 }
-
-fn parseapirequest(parsedapidata: &mut ParsedData, apidata: &str) {
+fn parseapirequest(parsed_api_data: &mut ParsedData, apidata: &str) {
     let parsed: serde_json::Value = serde_json::from_str(apidata).unwrap_or_default();
-    let entry = &parsed["subsonic-response"]["nowPlaying"]["entry"][0];
+    let entry: &serde_json::Value = &parsed["subsonic-response"]["nowPlaying"]["entry"][0];
 
-    parsedapidata.username = entry["username"].as_str().unwrap_or_default().to_string();
-    parsedapidata.title = entry["title"].as_str().unwrap_or_default().to_string();
-    parsedapidata.artist = entry["artist"].as_str().unwrap_or_default().to_string();
-    parsedapidata.album = entry["album"].as_str().unwrap_or_default().to_string();
-    parsedapidata.play_count = entry["playCount"].as_i64().unwrap_or_default() as i32;
-    parsedapidata.cover_art = entry["coverArt"].as_str().unwrap_or_default().to_string();
+    parsed_api_data.username = entry["username"].as_str().unwrap_or_default().to_string();
+    parsed_api_data.title = entry["title"].as_str().unwrap_or_default().to_string();
+    parsed_api_data.artist = entry["artist"].as_str().unwrap_or_default().to_string();
+    parsed_api_data.album = entry["album"].as_str().unwrap_or_default().to_string();
+    parsed_api_data.play_count = entry["playCount"].as_i64().unwrap_or_default() as i32;
+    parsed_api_data.cover_art = entry["coverArt"].as_str().unwrap_or_default().to_string();
 }
 
 fn init_ipc(
@@ -120,17 +119,22 @@ fn init_ipc(
             .name(format!("{}", &parsed_api_data.artist))
             .details(format!("{}", &parsed_api_data.title))
             .state(format!(
-                "{} :: {} plays",
+                "in: {} :: {} plays",
                 &parsed_api_data.album, &parsed_api_data.play_count
             ))
             .assets(activity::Assets::new().large_image(largeimageurl.to_string())),
     )?;
 
-    if parsed_api_data.title == " " {
-        let _ = client.close();
-    }
-
     Ok(())
+}
+
+fn reclient(configstruct: &Config) -> DiscordIpcClient {
+    let mut client: DiscordIpcClient = DiscordIpcClient::new(format!("{}", configstruct.application_id));
+    if let Err(initerror) = client.connect() {
+        eprintln!("reclient RPC connect fail :: {}", initerror);
+        std::process::exit(1)
+    };
+    return client;
 }
 
 #[tokio::main]
@@ -139,28 +143,34 @@ async fn main() {
 
     parseconfig(&mut configstruct).unwrap();
 
-    let token = gentoken(&configstruct.password);
+    let token: TokenData = gentoken(&configstruct.password);
     let mut parsed_api_data: ParsedData = ParsedData::default();
     let mut apidata: String = String::new();
-
-    let mut client = DiscordIpcClient::new(format!("{}", configstruct.application_id));
-    if let Err(initerror) = client.connect() {
-        eprintln!("RPC connect fail :: {}", initerror);
-        std::process::exit(1)
-    };
-
-    let body = reqwest::Client::new();
+    let mut client: DiscordIpcClient = reclient(&configstruct);
+    let body: Client = reqwest::Client::new();
+    let mut mediastate: bool = false;
 
     tokio::select! {
         _ = async {
                 loop {
                     apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
-
                     parseapirequest(&mut parsed_api_data, &apidata);
 
-                    if let Err(initerror) = init_ipc(&parsed_api_data, &mut client) {
-                        eprintln!("RPC Init fail :: {}", initerror);
-                        std::process::exit(1)
+                    if parsed_api_data.title.is_empty() {
+                        let _ = client.close();
+
+                        mediastate = false;
+                        println!("closing ipc, ms {} (f)", mediastate);
+                    } else if !parsed_api_data.title.is_empty() && !mediastate {
+                        client = reclient(&configstruct);
+                        apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
+                        if let Err(initerror) = init_ipc(&parsed_api_data, &mut client) {
+                            eprintln!("RPC Init fail :: {}", initerror);
+                            std::process::exit(1)
+                        };
+
+                        mediastate = true;
+                        println!("opening ipc, ms {} (t)", mediastate);
                     };
 
                     // debug // println!("{} {} {} {} {} {} {}", parsed_api_data.username, parsed_api_data.title, parsed_api_data.artist, parsed_api_data.album, parsed_api_data.play_count, parsed_api_data.cover_art, parsed_api_data.constructedlargeimageurl);
@@ -176,15 +186,4 @@ async fn main() {
 
     }
 
-    /* debug
-    println!("{:?}", &apidata);
-    println!("{:?}", token.token);
-
-
-    println!("{}",configstruct.httpaddr);
-    println!("{}",configstruct.username);
-    println!("{}",configstruct.password);
-    println!("{}",configstruct.imagebool);
-    println!("{}",configstruct.pollingrate);
-    */
 }
