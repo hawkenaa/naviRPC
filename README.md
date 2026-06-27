@@ -15,7 +15,8 @@ Designed for Linux, on Linux. (Artix)
 ___
 # Config and Running
 
-``` {
+``` 
+{
     "applicationID": 0000000000000000000,
     "http_address": "https://navidrome.yoursite.tld",
     "username": "username",
