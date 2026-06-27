@@ -129,7 +129,8 @@ fn init_ipc(
 }
 
 fn reclient(configstruct: &Config) -> DiscordIpcClient {
-    let mut client: DiscordIpcClient = DiscordIpcClient::new(format!("{}", configstruct.application_id));
+    let mut client: DiscordIpcClient =
+        DiscordIpcClient::new(format!("{}", configstruct.application_id));
     if let Err(initerror) = client.connect() {
         eprintln!("reclient RPC connect fail :: {}", initerror);
         std::process::exit(1)
@@ -158,7 +159,7 @@ async fn main() {
                 loop {
                     apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
                     parseapirequest(&mut parsed_api_data, &apidata);
-                    
+
 
                     if parsed_api_data.title.is_empty() {
                         let _ = client.close();
@@ -189,5 +190,4 @@ async fn main() {
             }
 
     }
-
 }
