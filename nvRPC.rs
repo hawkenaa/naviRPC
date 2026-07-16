@@ -70,6 +70,7 @@ async fn apirequest(
         .await?;
 
     let mut imageurl = respbody.url().clone();
+    println!("{}", imageurl);
     imageurl.set_path("/rest/getCoverArt");
     imageurl
         .query_pairs_mut()
