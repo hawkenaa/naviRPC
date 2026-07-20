@@ -1,11 +1,12 @@
 # naviRPC
 A Lightweight Linux Discord Rich Presence Scraper for Navidrome Music Servers in Rust
 
-<img width="281" height="115" alt="example_1" src="https://github.com/user-attachments/assets/4f38059f-5a69-455c-b888-ad017ab51ef5" />
+<img width="281" height="115" alt="example_1" src="https://github.com/user-attachments/assets/691a7d17-b3ea-4117-9840-f6b22d66b21b" />
+
 
 ___
 
-naviRPC supports HTTPS and HTTP (http untested) over public and local domain.
+naviRPC supports HTTPS and HTTP (HTTP untested) over public and local domain.
 No Oauth2 required.
 
 naviRPC is __relatively__ simple though incredibly lightweight. (KISS)
@@ -38,14 +39,13 @@ An Application ID (Discord Application) is used to give Rich Presence a name and
 
 Displaying music artwork is only possible if your library is publically exposed (reachable over internet), as Discord cannot access Jellyfin over LAN or VPN (Tailscale). This does not apply to Rich Presence.
 
-Polling rate is used to manage polling for your Navidrome Server and IPC socket (RPC). Any integer can be used, but 3-15 seconds are recomended, with lower integers resulting in faster updates, and vice-versa. Your IPC socket will only update if your media changes (Different Track), you pause your media, or if you skip forward or backward in your track.
+Polling rate is used to manage polling for your Navidrome Server and IPC socket (RPC). Any integer can be used, but 3-15 seconds are recomended, with lower integers resulting in faster updates, and vice-versa. Your IPC socket will only update if your media changes in state (pause, play, start) ~~or if you skip forward or backward in your track~~ :: soon.. .
 
-the IPC connection will automatically close when no media is playing whatsoever, ~~but remains open if you have items queued or pause your media~~ navidrome automatically sets your media to non-active after a set amount of time, which WILL close your connection. IPC will automatically reopen when media is found active (playing).
+the IPC connection will automatically close when no media is playing whatsoever, but remains open if you have items queued or pause your media, though, navidrome automatically sets your session to inactive after a set amount of time, which WILL close your connection. IPC will automatically reopen when media is found active (playing).
 
-This program will only pull the first session found, paused or not, and does ~~not~~ (yet) have user-filter support.
+This program will only pull the first session found, paused or not, and does not (yet) have user-filter support.
 
-Due to the limitations of the OpenSubsonicAPI and SubsonicAPI, timestamps do not automatically save using the navidrome web-player, though custom clients may post and save to the server, allowing timestamps to show.
-Timestamps are not-yet supported but I will look into it.
+Timestamps are supported through OpenSubsonic Api ver. 0.62.0+, and is __subsequently required for the program to function due to dropping legacy Subsonic support__. You must also use a program that reports these sessions to your navidrome server, such as Feishin. Edge cases exist where an update may not be received and will break timestamps while still displaying media, this usually only requires a quick pause and unpause to fix.
 
 ___
 
@@ -55,7 +55,7 @@ Init processes are delegated to the user, as this does not run by itself on boot
 ___
 
 As I have moved to Navidrome, I do plan on adding to this project.
-(IE: custom status arrangements, timestamp support, daemon and docker support)
+(IE: custom status arrangements, ~~timestamp support,~~ daemon support ~~and docker support -> not viable, and discord tokens are a major security vulnerability~~)
 
 This project was started for learning _Rust_.
 _(meaning all gruelly handwritten!!!!!)_
