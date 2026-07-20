@@ -1,10 +1,11 @@
 use discord_rich_presence::{
     DiscordIpc, DiscordIpcClient,
-    activity::{self, ActivityType::Listening},
+    activity::{self, ActivityType::Listening, Timestamps},
 };
 use rand::distr::{Alphanumeric, SampleString};
 use reqwest::Client;
 use std::{fs, time::Duration};
+use chrono::{DateTime, Utc};
 
 #[derive(serde::Deserialize, Default)]
 struct Config {
@@ -70,7 +71,6 @@ async fn apirequest(
         .await?;
 
     let mut imageurl = respbody.url().clone();
-    println!("{}", imageurl);
     imageurl.set_path("/rest/getCoverArt");
     imageurl
         .query_pairs_mut()
@@ -91,6 +91,11 @@ struct ParsedData {
     #[serde(rename = "playCount")]
     play_count: i32,
 
+    #[serde(rename = "state")]
+    mediastate: String,
+    duration: i32,
+    position_ms: i32,
+
     #[serde(rename = "coverArt")]
     cover_art: String,
     constructedlargeimageurl: String,
@@ -106,6 +111,9 @@ fn parseapirequest(parsed_api_data: &mut ParsedData, apidata: &str) {
     parsed_api_data.album = entry["album"].as_str().unwrap_or_default().to_string();
     parsed_api_data.play_count = entry["playCount"].as_i64().unwrap_or_default() as i32;
     parsed_api_data.cover_art = entry["coverArt"].as_str().unwrap_or_default().to_string();
+    parsed_api_data.mediastate = entry["state"].as_str().unwrap_or_default().to_string();
+    parsed_api_data.duration = entry["duration"].as_i64().unwrap_or_default() as i32;
+    parsed_api_data.position_ms = entry["positionMs"].as_i64().unwrap_or_default() as i32;
 }
 
 fn init_ipc(
@@ -113,6 +121,11 @@ fn init_ipc(
     client: &mut DiscordIpcClient,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let largeimageurl: String = format!("{}", parsed_api_data.constructedlargeimageurl);
+
+    let unix_current: i64 = Utc::now().timestamp();
+    let mut stamps: Timestamps = Timestamps::new();
+    stamps = stamps.start(&unix_current - (parsed_api_data.position_ms/1000) as i64);
+    stamps = stamps.end(&unix_current - (parsed_api_data.position_ms/1000) as i64 + parsed_api_data.duration as i64);
 
     client.set_activity(
         activity::Activity::new()
@@ -123,6 +136,7 @@ fn init_ipc(
                 "in: {} :: {} plays",
                 &parsed_api_data.album, &parsed_api_data.play_count
             ))
+            .timestamps(stamps)
             .assets(activity::Assets::new().large_image(largeimageurl.to_string())),
     )?;
 
