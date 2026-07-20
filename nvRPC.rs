@@ -124,33 +124,38 @@ fn init_ipc(
 
     let unix_current: i64 = Utc::now().timestamp();
     let mut stamps: Timestamps = Timestamps::new();
-    stamps = stamps.start(&unix_current - (parsed_api_data.position_ms/1000) as i64);
-    stamps = stamps.end(&unix_current - (parsed_api_data.position_ms/1000) as i64 + parsed_api_data.duration as i64);
-
 
     if parsed_api_data.mediastate == "paused" {
-            client.set_activity(
-            activity::Activity::new()
-                .activity_type(Listening)
-                .name(format!("{}", &parsed_api_data.artist))
-                .details(format!("{}", &parsed_api_data.title))
-                .state(format!("paused"))
-                .timestamps(stamps)
-                .assets(activity::Assets::new().large_image(largeimageurl.to_string())),
+
+        stamps = stamps.start(unix_current);
+        stamps = stamps.end(unix_current);
+
+        client.set_activity(
+    activity::Activity::new()
+            .activity_type(Listening)
+            .name(format!("{}", &parsed_api_data.artist))
+            .details(format!("{}", &parsed_api_data.title))
+            .state(format!("paused"))
+            .timestamps(stamps)
+            .assets(activity::Assets::new().large_image(largeimageurl.to_string())),
         )?;
 
     } else {
+
+        stamps = stamps.start(&unix_current - (parsed_api_data.position_ms/1000) as i64);
+        stamps = stamps.end(&unix_current - (parsed_api_data.position_ms/1000) as i64 + parsed_api_data.duration as i64);
+
         client.set_activity(
-            activity::Activity::new()
-                .activity_type(Listening)
-                .name(format!("{}", &parsed_api_data.artist))
-                .details(format!("{}", &parsed_api_data.title))
-                .state(format!(
-                    "in: {} :: {} plays",
-                    &parsed_api_data.album, &parsed_api_data.play_count
-                ))
-                .timestamps(stamps)
-                .assets(activity::Assets::new().large_image(largeimageurl.to_string())),
+        activity::Activity::new()
+            .activity_type(Listening)
+            .name(format!("{}", &parsed_api_data.artist))
+            .details(format!("{}", &parsed_api_data.title))
+            .state(format!(
+            "in: {} :: {} plays",
+            &parsed_api_data.album, &parsed_api_data.play_count
+            ))
+            .timestamps(stamps)
+            .assets(activity::Assets::new().large_image(largeimageurl.to_string())),
         )?;
     };
 
@@ -182,6 +187,7 @@ async fn main() {
 
     let mut state: bool = true;
     let mut last_mediastate: String = parsed_api_data.mediastate.clone();
+    let mut last_title: String = parsed_api_data.title.clone();
 
     tokio::select! {
         _ = async {
@@ -202,7 +208,7 @@ async fn main() {
                         };
 
                         state = false;
-                    } else if parsed_api_data.title.is_empty() || (parsed_api_data.mediastate != last_mediastate) || &parsed_api_data.position_ms == &0 {
+                    } else if parsed_api_data.title.is_empty() || (parsed_api_data.mediastate != last_mediastate) || (parsed_api_data.title != last_title) {
                         apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
                         if let Err(initerror) = init_ipc(&parsed_api_data, &mut client) {
                             eprintln!("RPC Init fail :: {}", initerror);
@@ -213,6 +219,7 @@ async fn main() {
                     };
                     
                     last_mediastate = parsed_api_data.mediastate.clone();
+                    last_title = parsed_api_data.title.clone();
 
                     tokio::time::sleep(Duration::from_secs(configstruct.pollingrate as u64)).await;
                 }
