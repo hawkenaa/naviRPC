@@ -5,7 +5,7 @@ use discord_rich_presence::{
 use rand::distr::{Alphanumeric, SampleString};
 use reqwest::Client;
 use std::{fs, time::Duration};
-use chrono::{DateTime, Utc};
+use chrono::{Utc};
 
 #[derive(serde::Deserialize, Default)]
 struct Config {
@@ -127,18 +127,32 @@ fn init_ipc(
     stamps = stamps.start(&unix_current - (parsed_api_data.position_ms/1000) as i64);
     stamps = stamps.end(&unix_current - (parsed_api_data.position_ms/1000) as i64 + parsed_api_data.duration as i64);
 
-    client.set_activity(
-        activity::Activity::new()
-            .activity_type(Listening)
-            .name(format!("{}", &parsed_api_data.artist))
-            .details(format!("{}", &parsed_api_data.title))
-            .state(format!(
-                "in: {} :: {} plays",
-                &parsed_api_data.album, &parsed_api_data.play_count
-            ))
-            .timestamps(stamps)
-            .assets(activity::Assets::new().large_image(largeimageurl.to_string())),
-    )?;
+
+    if parsed_api_data.mediastate == "paused" {
+            client.set_activity(
+            activity::Activity::new()
+                .activity_type(Listening)
+                .name(format!("{}", &parsed_api_data.artist))
+                .details(format!("{}", &parsed_api_data.title))
+                .state(format!("paused"))
+                .timestamps(stamps)
+                .assets(activity::Assets::new().large_image(largeimageurl.to_string())),
+        )?;
+
+    } else {
+        client.set_activity(
+            activity::Activity::new()
+                .activity_type(Listening)
+                .name(format!("{}", &parsed_api_data.artist))
+                .details(format!("{}", &parsed_api_data.title))
+                .state(format!(
+                    "in: {} :: {} plays",
+                    &parsed_api_data.album, &parsed_api_data.play_count
+                ))
+                .timestamps(stamps)
+                .assets(activity::Assets::new().large_image(largeimageurl.to_string())),
+        )?;
+    };
 
     Ok(())
 }
@@ -166,8 +180,8 @@ async fn main() {
     let mut client: DiscordIpcClient = reclient(&configstruct);
     let body: Client = reqwest::Client::new();
 
-    let mut mediastate: bool = false;
-    let mut lasttrack: String = String::new();
+    let mut state: bool = true;
+    let mut last_mediastate: String = parsed_api_data.mediastate.clone();
 
     tokio::select! {
         _ = async {
@@ -175,12 +189,11 @@ async fn main() {
                     apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
                     parseapirequest(&mut parsed_api_data, &apidata);
 
-
-                    if parsed_api_data.title.is_empty() {
+                    if parsed_api_data.title.is_empty() || &parsed_api_data.mediastate == "stopped" {
                         let _ = client.close();
+                        state = true;
 
-                        mediastate = false;
-                    } else if (!parsed_api_data.title.is_empty() && !mediastate) || lasttrack != parsed_api_data.title {
+                    } else if (!parsed_api_data.title.is_empty() || &parsed_api_data.mediastate == "playing" || parsed_api_data.position_ms == 0) && state == true {
                         client = reclient(&configstruct);
                         apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
                         if let Err(initerror) = init_ipc(&parsed_api_data, &mut client) {
@@ -188,10 +201,19 @@ async fn main() {
                             std::process::exit(1)
                         };
 
-                        mediastate = true;
-                    };
+                        state = false;
+                    } else if parsed_api_data.title.is_empty() || (parsed_api_data.mediastate != last_mediastate) || &parsed_api_data.position_ms == &0 {
+                        apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
+                        if let Err(initerror) = init_ipc(&parsed_api_data, &mut client) {
+                            eprintln!("RPC Init fail :: {}", initerror);
+                            std::process::exit(1)
+                        };
 
-                    lasttrack = parsed_api_data.title.clone();
+                        state = false;
+                    };
+                    
+                    last_mediastate = parsed_api_data.mediastate.clone();
+
                     tokio::time::sleep(Duration::from_secs(configstruct.pollingrate as u64)).await;
                 }
             } => {}
