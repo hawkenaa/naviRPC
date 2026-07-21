@@ -41,11 +41,11 @@ Displaying music artwork is only possible if your library is publically exposed 
 
 Polling rate is used to manage polling for your Navidrome Server and IPC socket (RPC). Any integer can be used, but 3-15 seconds are recomended, with lower integers resulting in faster updates, and vice-versa. Your IPC socket will only update if your media changes in state (pause, play, start) ~~or if you skip forward or backward in your track~~ :: soon.. .
 
-the IPC connection will automatically close when no media is playing whatsoever, but remains open if you have items queued or pause your media, though, navidrome automatically sets your session to inactive after a set amount of time, which WILL close your connection. IPC will automatically reopen when media is found active (playing).
+the IPC connection will  close when navidrome automatically sets your session to inactive after a set amount of time, but remains open if you pause your media. IPC will automatically reopen when media is found active (playing).
 
 This program will only pull the first session found, paused or not, and does not (yet) have user-filter support.
 
-Timestamps are supported through OpenSubsonic Api ver. 0.62.0+, and is __subsequently required for the program to function due to dropping legacy Subsonic support__. You must also use a program that reports these sessions to your navidrome server, such as Feishin. Edge cases exist where an update may not be received and will break timestamps while still displaying media, this usually only requires a quick pause and unpause to fix.
+Timestamps are supported through OpenSubsonic Api ver. 0.62.0+, and is __subsequently required for the program to function due to dropping legacy Subsonic support__.
 
 ___
 
