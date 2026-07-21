@@ -192,9 +192,12 @@ async fn main() {
     tokio::select! {
         _ = async {
                 loop {
-                    apidata = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await.unwrap();
-                    parseapirequest(&mut parsed_api_data, &apidata);
-
+                    let apierr = apirequest(&configstruct, &token, &mut parsed_api_data, &body).await;
+                    if let Ok(apierr) = apierr {
+                        apidata = apierr;
+                        parseapirequest(&mut parsed_api_data, &apidata); 
+                    } else {eprintln!("apireqfail: {:?}", apierr);}
+                    
                     if parsed_api_data.title.is_empty() || &parsed_api_data.mediastate == "stopped" {
                         let _ = client.close();
                         state = true;
